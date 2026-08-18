@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary SEO -->
+    <title>प्रिमियम भजन - Premium Bhajan Music Player</title>
+    <meta name="description" content="सुनिए सर्वश्रेष्ठ भजन संग्रह — प्रिमियम भजन पर। Listen to the finest collection of devotional bhajans, live and free.">
+    <meta name="keywords" content="भजन, bhajan, premium bhajan, nepali bhajan, hindi bhajan, devotional music, bhakti songs, krishna bhajan, shiva bhajan">
+    <meta name="author" content="प्रिमियम भजन">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://bhajan.vercel.app/">
+
+    <!-- Open Graph (Facebook, WhatsApp, Discord) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://bhajan.vercel.app/">
+    <meta property="og:title" content="प्रिमियम भजन - Premium Bhajan Music Player">
+    <meta property="og:description" content="सुनिए सर्वश्रेष्ठ भजन संग्रह — प्रिमियम भजन पर। Listen to the finest collection of devotional bhajans, live and free.">
+    <meta property="og:image" content="https://bhajan.vercel.app/ogimage.png">
+    <meta property="og:image:secure_url" content="https://bhajan.vercel.app/ogimage.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="प्रिमियम भजन - Premium Bhajan Music Player">
+    <meta property="og:site_name" content="प्रिमियम भजन">
+    <meta property="og:locale" content="hi_IN">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://bhajan.vercel.app/">
+    <meta name="twitter:title" content="प्रिमियम भजन - Premium Bhajan Music Player">
+    <meta name="twitter:description" content="सुनिए सर्वश्रेष्ठ भजन संग्रह — प्रिमियम भजन पर। Listen to the finest collection of devotional bhajans, live and free.">
+    <meta name="twitter:image" content="https://bhajan.vercel.app/ogimage.png">
+
+    <!-- Favicon -->
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts for Devanagari -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhai+2:wght@400..800&family=Hind:wght@300;400;500;600;700&family=Mukta:wght@200;300;400;500;600;700;800&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <title>प्रिमियम भजन - Premium Bhajan Music Player</title>
+</head>
+<body>
+    <div class="site-disclaimer">Disclaimer! This may not be the site you're looking for</div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="time">9:11 pm</div>
+        <div class="online-status">
+            <span class="online-dot"></span>
+            <span class="online-count">0</span>
+            <span>online</span>
+        </div>
+    </div>
+
+    <!-- External Links -->
+    <div class="external-links">
+        <a href="https://music.youtube.com/playlist?list=PLM74qOWImQUo" target="_blank" class="link-btn">
+            <i class="fab fa-youtube"></i> YT Music
+        </a>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Title -->
+        <h1 class="main-title">प्रिमियम<br>भजन</h1>
+
+        <!-- Sound Control -->
+        <div class="sound-control">
+            <button class="sound-trigger" id="soundTrigger" aria-label="Play sound">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            <span class="sound-label">साङ्ख बजाउ</span>
+        </div>
+
+        <!-- Music Player -->
+        <div class="music-player">
+            <div class="album-art">
+                <img src="bhajan.jpg" alt="Album Art" id="albumArt">
+            </div>
+            <div class="song-info">
+                <div class="song-title" id="songTitle">नया शुद्ध नेपाली भजन</div>
+                <div class="song-artist" id="songArtist">Sahima Music Official</div>
+                <div class="progress-container">
+                    <span class="current-time" id="currentTime">0:00</span>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress"></div>
+                    </div>
+                    <span class="duration" id="duration">0:00</span>
+                    <button class="mode-btn active" id="modeToggleBtn" data-mode="order" title="Switch playback mode" aria-label="Switch playback mode">
+                        <i class="fas fa-list-ul"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="player-controls">
+                <button class="control-btn" id="prevBtn">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-btn" id="playBtn">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="control-btn" id="nextBtn">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden YouTube Player -->
+    <div id="youtube-player" style="display: none;"></div>
+
+    <!-- Background Illustration Effect -->
+    <div class="bg-illustration"></div>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

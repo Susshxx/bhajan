@@ -1,0 +1,384 @@
+// Music Player with YouTube Playlist Integration
+
+// YouTube Playlist Configuration
+// Your Premium Bhajan Playlist
+const PLAYLIST_ID = "PLM74qOWImQUo";
+
+let currentSongIndex = 0;
+let isPlaying = false;
+let player;
+let progressInterval;
+let playbackMode = 'order';
+let shuffledOrder = [];
+
+// DOM Elements
+const playBtn = document.getElementById('playBtn');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const modeToggleBtn = document.getElementById('modeToggleBtn');
+const soundTrigger = document.getElementById('soundTrigger');
+const songTitle = document.getElementById('songTitle');
+const songArtist = document.getElementById('songArtist');
+const albumArt = document.getElementById('albumArt');
+const currentTimeEl = document.getElementById('currentTime');
+const durationEl = document.getElementById('duration');
+const progress = document.getElementById('progress');
+const progressBar = document.querySelector('.progress-bar');
+
+// YouTube IFrame API Ready
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtube-player', {
+        height: '0',
+        width: '0',
+        playerVars: {
+            'listType': 'playlist',
+            'list': PLAYLIST_ID,
+            'playsinline': 1,
+            'controls': 0,
+            'rel': 0,
+            'showinfo': 0,
+            'modestbranding': 1,
+            'autoplay': 0,
+            'loop': 1  // Enable playlist looping
+        },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+// Player ready
+function onPlayerReady(event) {
+    updateSongInfo();
+    startProgressUpdates();
+}
+
+function shuffleArray(items) {
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function updatePlaybackModeButtons() {
+    if (!modeToggleBtn) return;
+
+    const icon = modeToggleBtn.querySelector('i');
+    if (!icon) return;
+
+    if (playbackMode === 'shuffle') {
+        modeToggleBtn.dataset.mode = 'shuffle';
+        modeToggleBtn.setAttribute('title', 'Shuffle songs');
+        modeToggleBtn.setAttribute('aria-label', 'Shuffle songs');
+        icon.classList.remove('fa-list-ul');
+        icon.classList.add('fa-random');
+    } else {
+        modeToggleBtn.dataset.mode = 'order';
+        modeToggleBtn.setAttribute('title', 'Normal playlist order');
+        modeToggleBtn.setAttribute('aria-label', 'Normal playlist order');
+        icon.classList.remove('fa-random');
+        icon.classList.add('fa-list-ul');
+    }
+}
+
+function getPlaybackTargetIndex(direction) {
+    if (!player || !player.getPlaylist || !player.getPlaylist()) return 0;
+
+    const playlist = player.getPlaylist();
+    const total = playlist.length;
+
+    if (!total) return 0;
+
+    const currentIndex = player.getPlaylistIndex();
+
+    if (playbackMode === 'single') {
+        return currentIndex;
+    }
+
+    if (playbackMode === 'shuffle') {
+        if (!shuffledOrder.length || shuffledOrder.length !== total) {
+            shuffledOrder = shuffleArray(Array.from({ length: total }, (_, index) => index));
+        }
+
+        const currentPosition = shuffledOrder.indexOf(currentIndex);
+        const nextPosition = currentPosition === -1
+            ? 0
+            : (currentPosition + direction + shuffledOrder.length) % shuffledOrder.length;
+
+        return shuffledOrder[nextPosition];
+    }
+
+    let nextIndex = currentIndex + direction;
+    if (nextIndex >= total) nextIndex = 0;
+    if (nextIndex < 0) nextIndex = total - 1;
+    return nextIndex;
+}
+
+function changeMode(mode) {
+    playbackMode = mode === 'shuffle' ? 'shuffle' : 'order';
+    updatePlaybackModeButtons();
+    if (playbackMode === 'shuffle' && player && typeof player.getPlaylist === 'function') {
+        const playlist = player.getPlaylist();
+        if (playlist && playlist.length) {
+            shuffledOrder = shuffleArray(Array.from({ length: playlist.length }, (_, index) => index));
+        }
+    }
+}
+
+// Player state changes
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED) {
+        if (playbackMode === 'single') {
+            player.seekTo(0, true);
+            player.playVideo();
+            return;
+        }
+
+        if (player && typeof player.playVideoAt === 'function') {
+            const targetIndex = getPlaybackTargetIndex(1);
+            player.playVideoAt(targetIndex);
+            setTimeout(() => {
+                updateSongInfo();
+                if (isPlaying) {
+                    player.playVideo();
+                }
+            }, 500);
+        } else if (player && typeof player.nextVideo === 'function') {
+            player.nextVideo();
+            setTimeout(() => {
+                updateSongInfo();
+                if (isPlaying) {
+                    player.playVideo();
+                }
+            }, 1000);
+        }
+    } else if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true;
+        updatePlayButton();
+        updateSongInfo();
+        startCDRotation();
+    } else if (event.data === YT.PlayerState.PAUSED) {
+        isPlaying = false;
+        updatePlayButton();
+        stopCDRotation();
+    } else if (event.data === YT.PlayerState.BUFFERING) {
+        // Song is loading/changing
+        setTimeout(updateSongInfo, 300);
+    }
+}
+
+// CD Rotation Control
+function startCDRotation() {
+    albumArt.classList.add('spinning');
+}
+
+function stopCDRotation() {
+    albumArt.classList.remove('spinning');
+}
+
+// Update song information
+function updateSongInfo() {
+    if (!player || !player.getVideoData) return;
+    
+    const videoData = player.getVideoData();
+    const title = videoData.title || "Loading...";
+    const author = videoData.author || "Artist";
+    const videoId = videoData.video_id;
+    
+    // Only update if we have valid data (not loading state)
+    if (title && title !== "Loading..." && videoId) {
+        // Parse title to separate song and artist if formatted as "Song - Artist"
+        if (title.includes(' - ')) {
+            const parts = title.split(' - ');
+            songTitle.textContent = parts[0].trim();
+            songArtist.textContent = parts[1].trim();
+        } else {
+            songTitle.textContent = title;
+            songArtist.textContent = author;
+        }
+        
+        // Update album art
+        albumArt.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        
+        currentSongIndex = player.getPlaylistIndex();
+    }
+}
+
+// Convert seconds to time string
+function convertSecondsToTime(seconds) {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Update progress bar
+function updateProgress() {
+    if (!player || !player.getCurrentTime) return;
+    
+    const currentTime = player.getCurrentTime();
+    const duration = player.getDuration();
+    
+    if (duration > 0) {
+        const progressPercent = (currentTime / duration) * 100;
+        progress.style.width = `${progressPercent}%`;
+        currentTimeEl.textContent = convertSecondsToTime(currentTime);
+        durationEl.textContent = convertSecondsToTime(duration);
+    }
+}
+
+// Start progress updates
+function startProgressUpdates() {
+    if (progressInterval) clearInterval(progressInterval);
+    progressInterval = setInterval(updateProgress, 100);
+}
+
+// Update play button icon
+function updatePlayButton() {
+    const icon = playBtn.querySelector('i');
+    if (isPlaying) {
+        icon.classList.remove('fa-play');
+        icon.classList.add('fa-pause');
+    } else {
+        icon.classList.remove('fa-pause');
+        icon.classList.add('fa-play');
+    }
+}
+
+// Play/Pause toggle
+function togglePlay() {
+    if (!player) return;
+    
+    if (isPlaying) {
+        player.pauseVideo();
+    } else {
+        player.playVideo();
+    }
+}
+
+// Previous song
+function prevSong() {
+    if (!player) return;
+
+    if (playbackMode === 'single') {
+        player.seekTo(0, true);
+        if (isPlaying) player.playVideo();
+        return;
+    }
+
+    const targetIndex = getPlaybackTargetIndex(-1);
+    if (typeof player.playVideoAt === 'function') {
+        player.playVideoAt(targetIndex);
+    } else {
+        player.previousVideo();
+    }
+
+    setTimeout(() => {
+        updateSongInfo();
+        if (isPlaying) {
+            player.playVideo();
+        }
+    }, 200);
+}
+
+// Next song
+function nextSong() {
+    if (!player) return;
+
+    if (playbackMode === 'single') {
+        player.seekTo(0, true);
+        if (isPlaying) player.playVideo();
+        return;
+    }
+
+    const targetIndex = getPlaybackTargetIndex(1);
+    if (typeof player.playVideoAt === 'function') {
+        player.playVideoAt(targetIndex);
+    } else {
+        player.nextVideo();
+    }
+
+    setTimeout(() => {
+        updateSongInfo();
+        if (isPlaying) {
+            player.playVideo();
+        }
+    }, 200);
+}
+
+// Seek functionality
+function seek(e) {
+    if (!player || !player.getDuration) return;
+    
+    const width = progressBar.clientWidth;
+    const clickX = e.offsetX;
+    const duration = player.getDuration();
+    const seekTime = (clickX / width) * duration;
+    
+    player.seekTo(seekTime, true);
+}
+
+const sankhaSound = new Audio('sankha.m4a');
+
+function playSankhaSound() {
+    if (!sankhaSound || !soundTrigger) return;
+
+    const wasPlayingBeforeSound = isPlaying && player && typeof player.pauseVideo === 'function';
+    if (wasPlayingBeforeSound) {
+        player.pauseVideo();
+    }
+
+    sankhaSound.currentTime = 0;
+    sankhaSound.play();
+
+    sankhaSound.onended = () => {
+        if (wasPlayingBeforeSound && player && typeof player.playVideo === 'function') {
+            player.playVideo();
+        }
+    };
+}
+
+// Event listeners
+playBtn.addEventListener('click', togglePlay);
+prevBtn.addEventListener('click', prevSong);
+nextBtn.addEventListener('click', nextSong);
+if (modeToggleBtn) {
+    modeToggleBtn.addEventListener('click', () => {
+        const nextMode = playbackMode === 'shuffle' ? 'order' : 'shuffle';
+        changeMode(nextMode);
+    });
+}
+if (soundTrigger) {
+    soundTrigger.addEventListener('click', playSankhaSound);
+}
+progressBar.addEventListener('click', seek);
+
+// Update time
+function updateTime() {
+    const timeEl = document.querySelector('.time');
+    if (!timeEl) return;
+
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12 || 12;
+    timeEl.textContent = `${hours}:${minutes} ${ampm}`;
+}
+
+function refreshClock() {
+    updateTime();
+
+    const now = new Date();
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    setTimeout(() => {
+        updateTime();
+        setInterval(updateTime, 60000);
+    }, msUntilNextMinute);
+}
+
+updateTime();
+refreshClock();
