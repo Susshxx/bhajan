@@ -39,7 +39,8 @@ function onYouTubeIframeAPIReady() {
             'showinfo': 0,
             'modestbranding': 1,
             'autoplay': 0,
-            'loop': 1  // Enable playlist looping
+            'loop': 1,
+            'origin': window.location.origin
         },
         events: {
             'onReady': onPlayerReady,
