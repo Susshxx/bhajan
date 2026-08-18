@@ -414,6 +414,10 @@ body > *:not(.site-disclaimer) {
     body {
         background-position: center center;
     }
+    .container {
+        width: 100%;
+        padding: 0 16px;
+    }
     .main-title {
         font-size: 4rem;
         margin-bottom: 20px;
