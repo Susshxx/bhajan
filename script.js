@@ -44,7 +44,15 @@ function onYouTubeIframeAPIReady() {
         },
         events: {
             'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onError': function(e) {
+                console.error('YouTube Player Error:', e.data);
+                // Error codes:
+                // 2  = invalid parameter
+                // 5  = HTML5 player error
+                // 100 = video not found / private
+                // 101/150 = embedding not allowed
+            }
         }
     });
 }
