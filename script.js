@@ -28,8 +28,8 @@ const progressBar = document.querySelector('.progress-bar');
 // YouTube IFrame API Ready
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtube-player', {
-        height: '0',
-        width: '0',
+        height: '1',
+        width: '1',
         playerVars: {
             'listType': 'playlist',
             'list': PLAYLIST_ID,
@@ -40,18 +40,15 @@ function onYouTubeIframeAPIReady() {
             'modestbranding': 1,
             'autoplay': 0,
             'loop': 1,
-            'origin': window.location.origin
+            'origin': window.location.origin,
+            'enablejsapi': 1,
+            'fs': 0
         },
         events: {
             'onReady': onPlayerReady,
             'onStateChange': onPlayerStateChange,
             'onError': function(e) {
                 console.error('YouTube Player Error:', e.data);
-                // Error codes:
-                // 2  = invalid parameter
-                // 5  = HTML5 player error
-                // 100 = video not found / private
-                // 101/150 = embedding not allowed
             }
         }
     });
@@ -154,7 +151,7 @@ function onPlayerStateChange(event) {
                 if (isPlaying) {
                     player.playVideo();
                 }
-            }, 500);
+            }, 200);
         } else if (player && typeof player.nextVideo === 'function') {
             player.nextVideo();
             setTimeout(() => {
@@ -162,7 +159,7 @@ function onPlayerStateChange(event) {
                 if (isPlaying) {
                     player.playVideo();
                 }
-            }, 1000);
+            }, 200);
         }
     } else if (event.data === YT.PlayerState.PLAYING) {
         isPlaying = true;
