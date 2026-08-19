@@ -62,35 +62,36 @@ function onPlayerReady(event) {
         sankhaSound.currentTime = 0;
     }
 
+    startProgressUpdates();
+
     // Restore last position if available
     const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
     const savedTime = parseFloat(localStorage.getItem('bhajan_time') || '0');
 
-    if (savedIndex > 0 && player.getPlaylist && player.getPlaylist()) {
+    if (savedIndex > 0) {
         player.playVideoAt(savedIndex);
-        setTimeout(() => {
-            if (savedTime > 0) player.seekTo(savedTime, true);
-            player.pauseVideo();
-            updateSongInfo();
-        }, 500);
     } else {
-        updateSongInfo();
+        // Force play briefly to trigger data load from YouTube API
+        player.playVideo();
     }
 
-    startProgressUpdates();
-
-    // Poll until song info is actually available (mobile loads it late)
+    // Poll for song data — YouTube only provides it after playback starts
     const infoPoller = setInterval(() => {
         if (!player || !player.getVideoData) return;
         const data = player.getVideoData();
         if (data && data.video_id && data.title && data.title !== '') {
             updateSongInfo();
+
+            // Seek to saved position then pause
+            if (savedTime > 5) player.seekTo(savedTime, true);
+            player.pauseVideo();
+
             clearInterval(infoPoller);
         }
-    }, 200);
+    }, 150);
 
-    // Stop polling after 10 seconds regardless
-    setTimeout(() => clearInterval(infoPoller), 10000);
+    // Fallback — stop polling after 15 seconds
+    setTimeout(() => clearInterval(infoPoller), 15000);
 }
 
 function shuffleArray(items) {
