@@ -37,16 +37,13 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
 
-    <!-- Preconnect for faster YouTube loading -->
-    <link rel="preconnect" href="https://www.youtube.com">
-    <link rel="preconnect" href="https://i.ytimg.com">
-    <link rel="preconnect" href="https://www.youtube-nocookie.com">
-    <link rel="preconnect" href="https://yt3.ggpht.com">
-    <link rel="preconnect" href="https://youtubei.googleapis.com">
-    <link rel="dns-prefetch" href="https://www.youtube.com">
-    <link rel="dns-prefetch" href="https://i.ytimg.com">
-    <link rel="dns-prefetch" href="https://yt3.ggpht.com">
-    <link rel="dns-prefetch" href="https://youtubei.googleapis.com">
+    <!-- Preload + preconnect for fastest YouTube loading -->
+    <link rel="preload" href="https://www.youtube.com/iframe_api" as="script">
+    <link rel="preconnect" href="https://www.youtube.com" crossorigin>
+    <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
+    <link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin>
+    <link rel="preconnect" href="https://yt3.ggpht.com" crossorigin>
+    <link rel="preconnect" href="https://youtubei.googleapis.com" crossorigin>
     <link rel="dns-prefetch" href="https://static.doubleclick.net">
     <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net">
 
@@ -58,12 +55,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhai+2:wght@400..800&family=Hind:wght@300;400;500;600;700&family=Mukta:wght@200;300;400;500;600;700;800&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
     
-    <!-- YouTube IFrame API — load early for faster init -->
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- YouTube IFrame API is loaded dynamically in script.js to avoid blocking render -->
 
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js" defer></script>
     
     <title>प्रिमियम भजन - Premium Bhajan Music Player</title>
 </head>

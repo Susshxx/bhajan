@@ -11,6 +11,26 @@ let progressInterval;
 // Restore saved playback mode (shuffle/order) — defaults to 'order'
 let playbackMode = localStorage.getItem('bhajan_mode') || 'order';
 let shuffledOrder = [];
+let _seekedOnLoad = false; // guard: seek to saved position only once
+
+// ── Dynamically inject YouTube IFrame API (never blocks page render) ────────
+(function loadYouTubeAPI() {
+    const inject = () => {
+        if (document.getElementById('yt-iframe-api')) return; // already injected
+        const tag = document.createElement('script');
+        tag.id  = 'yt-iframe-api';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+    };
+    // Inject immediately on first interaction OR after 500 ms — whichever is first
+    let injected = false;
+    const once = () => { if (!injected) { injected = true; inject(); } };
+    setTimeout(once, 500);
+    ['click', 'touchstart', 'keydown'].forEach(e =>
+        document.addEventListener(e, once, { once: true, passive: true })
+    );
+})();
+// ────────────────────────────────────────────────────────────────────────────
 
 // ── Playlist Cache Helpers ──────────────────────────────────────────────────
 // Saves the array of video IDs returned by player.getPlaylist()
@@ -85,7 +105,7 @@ function onYouTubeIframeAPIReady() {
             'rel': 0,
             'showinfo': 0,
             'modestbranding': 1,
-            'autoplay': 0,
+            'autoplay': 1,   // start immediately — no extra round-trip needed
             'loop': 1,
             'origin': window.location.origin,
             'enablejsapi': 1,
@@ -111,17 +131,14 @@ function onPlayerReady(event) {
 
     startProgressUpdates();
 
-    // Restore last position if available
+    // Jump to the saved playlist index (autoplay:1 will start it playing)
     const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
-    const savedTime = parseFloat(localStorage.getItem('bhajan_time') || '0');
-
     if (savedIndex > 0) {
         player.playVideoAt(savedIndex);
-    } else {
-        player.playVideo();
     }
+    // savedTime seek is handled in onPlayerStateChange (PLAYING) to avoid race conditions
 
-    // Cache the playlist IDs as soon as the player has them
+    // Cache playlist IDs as soon as available — fast 80 ms poll, 5 s max
     const playlistCachePoller = setInterval(() => {
         if (!player || !player.getPlaylist) return;
         const ids = player.getPlaylist();
@@ -129,26 +146,8 @@ function onPlayerReady(event) {
             cachePlaylist(ids);
             clearInterval(playlistCachePoller);
         }
-    }, 200);
-    setTimeout(() => clearInterval(playlistCachePoller), 15000);
-
-    // Poll for song data — YouTube only provides it after playback starts
-    const infoPoller = setInterval(() => {
-        if (!player || !player.getVideoData) return;
-        const data = player.getVideoData();
-        if (data && data.video_id && data.title && data.title !== '') {
-            updateSongInfo();
-
-            // Seek to saved position but keep playing
-            if (savedTime > 5) player.seekTo(savedTime, true);
-            // Do NOT pause — let playlist keep playing
-
-            clearInterval(infoPoller);
-        }
-    }, 150);
-
-    // Fallback — stop polling after 15 seconds
-    setTimeout(() => clearInterval(infoPoller), 15000);
+    }, 80);
+    setTimeout(() => clearInterval(playlistCachePoller), 5000);
 }
 
 function shuffleArray(items) {
@@ -244,7 +243,6 @@ function onPlayerStateChange(event) {
         } else if (typeof player.nextVideo === 'function') {
             player.nextVideo();
         }
-        // PLAYING state event will fire automatically when the next song starts
     } else if (event.data === YT.PlayerState.PLAYING) {
         isPlaying = true;
         updatePlayButton();
@@ -255,6 +253,25 @@ function onPlayerStateChange(event) {
             localStorage.setItem('bhajan_index', player.getPlaylistIndex());
             localStorage.setItem('bhajan_time', '0');
         }
+
+        // Seek to saved time — only on very first PLAYING event after load
+        if (!_seekedOnLoad) {
+            _seekedOnLoad = true;
+            const savedTime = parseFloat(localStorage.getItem('bhajan_time') || '0');
+            if (savedTime > 5) player.seekTo(savedTime, true);
+        }
+
+        // Fast poll for video metadata (fires quickly since we're already PLAYING)
+        const infoPoller = setInterval(() => {
+            if (!player || !player.getVideoData) { clearInterval(infoPoller); return; }
+            const data = player.getVideoData();
+            if (data && data.video_id && data.title && data.title !== '') {
+                updateSongInfo();
+                clearInterval(infoPoller);
+            }
+        }, 50);
+        setTimeout(() => clearInterval(infoPoller), 5000);
+
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         updatePlayButton();
@@ -271,7 +288,7 @@ function onPlayerStateChange(event) {
                 updateSongInfo();
                 clearInterval(bufferPoller);
             }
-        }, 100);
+        }, 50);
         setTimeout(() => clearInterval(bufferPoller), 5000);
     }
 }

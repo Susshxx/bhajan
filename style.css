@@ -437,7 +437,13 @@ body > *:not(.site-disclaimer) {
         width: 100%;
     }
 
-    /* sound-control is fixed globally — no override needed on mobile */
+    /* On mobile: move sound-control from fixed left side to inline between title and player */
+    .sound-control {
+        position: static;
+        transform: none;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
 
     .music-player {
         width: 92vw;
