@@ -163,33 +163,42 @@ body > *:not(.site-disclaimer) {
 }
 
 .sound-control {
-    position: absolute;
-    left: -68%;
+    position: fixed;
+    left: 20px;
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
-    gap: 8px;
-    z-index: 12;
+    gap: 10px;
+    z-index: 120;
 }
 
 .sound-trigger {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.15);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(10px);
+    transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    flex-shrink: 0;
 }
 
 .sound-trigger:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.sound-trigger:active {
+    transform: scale(0.88);
+    background: rgba(255, 255, 255, 0.38);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .sound-label {
@@ -197,7 +206,8 @@ body > *:not(.site-disclaimer) {
     font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.5px;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
 }
 
 /* Main Title */
@@ -427,13 +437,7 @@ body > *:not(.site-disclaimer) {
         width: 100%;
     }
 
-    .sound-control {
-        position: static;
-        transform: none;
-        justify-content: center;
-        margin-top: 50px;
-        margin-bottom: -80px;
-    }
+    /* sound-control is fixed globally — no override needed on mobile */
 
     .music-player {
         width: 92vw;
@@ -445,9 +449,6 @@ body > *:not(.site-disclaimer) {
         margin-bottom: -200px;
     }
 
-    .sound-control{
-        
-    }
 
     .album-art img {
         width: 55px;

@@ -8,8 +8,49 @@ let currentSongIndex = 0;
 let isPlaying = false;
 let player;
 let progressInterval;
-let playbackMode = 'order';
+// Restore saved playback mode (shuffle/order) — defaults to 'order'
+let playbackMode = localStorage.getItem('bhajan_mode') || 'order';
 let shuffledOrder = [];
+
+// ── Playlist Cache Helpers ──────────────────────────────────────────────────
+// Saves the array of video IDs returned by player.getPlaylist()
+function cachePlaylist(ids) {
+    try { localStorage.setItem('bhajan_playlist', JSON.stringify(ids)); } catch (_) {}
+}
+
+// Returns cached playlist IDs array, or null if not available
+function getCachedPlaylist() {
+    try {
+        const raw = localStorage.getItem('bhajan_playlist');
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+}
+
+// Saves metadata for a specific playlist index
+function cacheSongMeta(index, title, artist, videoId) {
+    try {
+        localStorage.setItem(`bhajan_song_${index}`, JSON.stringify({ title, artist, videoId }));
+    } catch (_) {}
+}
+
+// Returns cached song metadata for an index, or null
+function getCachedSongMeta(index) {
+    try {
+        const raw = localStorage.getItem(`bhajan_song_${index}`);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) { return null; }
+}
+
+// Immediately populate UI from cache (called before YT API is ready)
+function restoreUIFromCache() {
+    const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
+    const meta = getCachedSongMeta(savedIndex);
+    if (!meta) return;
+    songTitle.textContent  = meta.title  || 'नया शुद्ध नेपाली भजन';
+    songArtist.textContent = meta.artist || 'Bhajan';
+    if (meta.videoId) albumArt.src = `https://img.youtube.com/vi/${meta.videoId}/mqdefault.jpg`;
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 // DOM Elements
 const playBtn = document.getElementById('playBtn');
@@ -24,6 +65,12 @@ const currentTimeEl = document.getElementById('currentTime');
 const durationEl = document.getElementById('duration');
 const progress = document.getElementById('progress');
 const progressBar = document.querySelector('.progress-bar');
+
+// Restore cached UI immediately — before YouTube API loads
+restoreUIFromCache();
+
+// Restore playback mode button UI now that DOM elements exist
+updatePlaybackModeButtons();
 
 // YouTube IFrame API Ready
 function onYouTubeIframeAPIReady() {
@@ -71,9 +118,19 @@ function onPlayerReady(event) {
     if (savedIndex > 0) {
         player.playVideoAt(savedIndex);
     } else {
-        // Force play briefly to trigger data load from YouTube API
         player.playVideo();
     }
+
+    // Cache the playlist IDs as soon as the player has them
+    const playlistCachePoller = setInterval(() => {
+        if (!player || !player.getPlaylist) return;
+        const ids = player.getPlaylist();
+        if (ids && ids.length) {
+            cachePlaylist(ids);
+            clearInterval(playlistCachePoller);
+        }
+    }, 200);
+    setTimeout(() => clearInterval(playlistCachePoller), 15000);
 
     // Poll for song data — YouTube only provides it after playback starts
     const infoPoller = setInterval(() => {
@@ -82,9 +139,9 @@ function onPlayerReady(event) {
         if (data && data.video_id && data.title && data.title !== '') {
             updateSongInfo();
 
-            // Seek to saved position then pause
+            // Seek to saved position but keep playing
             if (savedTime > 5) player.seekTo(savedTime, true);
-            player.pauseVideo();
+            // Do NOT pause — let playlist keep playing
 
             clearInterval(infoPoller);
         }
@@ -125,14 +182,16 @@ function updatePlaybackModeButtons() {
 }
 
 function getPlaybackTargetIndex(direction) {
-    if (!player || !player.getPlaylist || !player.getPlaylist()) return 0;
+    // Use live playlist; fall back to cached playlist IDs if player not ready yet
+    const livePlaylist = player && player.getPlaylist && player.getPlaylist();
+    const playlist = livePlaylist || getCachedPlaylist();
+    if (!playlist || !playlist.length) return 0;
 
-    const playlist = player.getPlaylist();
     const total = playlist.length;
 
     if (!total) return 0;
 
-    const currentIndex = player.getPlaylistIndex();
+    const currentIndex = player && player.getPlaylistIndex ? player.getPlaylistIndex() : parseInt(localStorage.getItem('bhajan_index') || '0');
 
     if (playbackMode === 'single') {
         return currentIndex;
@@ -160,6 +219,8 @@ function getPlaybackTargetIndex(direction) {
 function changeMode(mode) {
     playbackMode = mode === 'shuffle' ? 'shuffle' : 'order';
     updatePlaybackModeButtons();
+    // Persist so it survives page close / browser switch
+    try { localStorage.setItem('bhajan_mode', playbackMode); } catch (_) {}
     if (playbackMode === 'shuffle' && player && typeof player.getPlaylist === 'function') {
         const playlist = player.getPlaylist();
         if (playlist && playlist.length) {
@@ -177,31 +238,19 @@ function onPlayerStateChange(event) {
             return;
         }
 
-        if (player && typeof player.playVideoAt === 'function') {
-            const targetIndex = getPlaybackTargetIndex(1);
+        const targetIndex = getPlaybackTargetIndex(1);
+        if (typeof player.playVideoAt === 'function') {
             player.playVideoAt(targetIndex);
-            setTimeout(() => {
-                updateSongInfo();
-                if (isPlaying) {
-                    player.playVideo();
-                }
-            }, 200);
-        } else if (player && typeof player.nextVideo === 'function') {
+        } else if (typeof player.nextVideo === 'function') {
             player.nextVideo();
-            setTimeout(() => {
-                updateSongInfo();
-                if (isPlaying) {
-                    player.playVideo();
-                }
-            }, 200);
         }
+        // PLAYING state event will fire automatically when the next song starts
     } else if (event.data === YT.PlayerState.PLAYING) {
         isPlaying = true;
         updatePlayButton();
         updateSongInfo();
         startCDRotation();
         setupMediaSession();
-        // Save current song index
         if (player.getPlaylistIndex) {
             localStorage.setItem('bhajan_index', player.getPlaylistIndex());
             localStorage.setItem('bhajan_time', '0');
@@ -210,9 +259,20 @@ function onPlayerStateChange(event) {
         isPlaying = false;
         updatePlayButton();
         stopCDRotation();
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+        }
     } else if (event.data === YT.PlayerState.BUFFERING) {
-        // Song is loading/changing
-        setTimeout(updateSongInfo, 300);
+        // Song is buffering/changing — poll for updated info
+        const bufferPoller = setInterval(() => {
+            if (!player || !player.getVideoData) { clearInterval(bufferPoller); return; }
+            const data = player.getVideoData();
+            if (data && data.video_id && data.title && data.title !== '') {
+                updateSongInfo();
+                clearInterval(bufferPoller);
+            }
+        }, 100);
+        setTimeout(() => clearInterval(bufferPoller), 5000);
     }
 }
 
@@ -236,20 +296,32 @@ function updateSongInfo() {
     
     // Only update if we have valid data (not loading state)
     if (title && title !== "Loading..." && videoId) {
+        let displayTitle = title;
+        let displayArtist = author;
+
         // Parse title to separate song and artist if formatted as "Song - Artist"
         if (title.includes(' - ')) {
             const parts = title.split(' - ');
-            songTitle.textContent = parts[0].trim();
-            songArtist.textContent = parts[1].trim();
-        } else {
-            songTitle.textContent = title;
-            songArtist.textContent = author;
+            displayTitle  = parts[0].trim();
+            displayArtist = parts[1].trim();
         }
-        
+
+        songTitle.textContent  = displayTitle;
+        songArtist.textContent = displayArtist;
+
         // Update album art
         albumArt.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-        
+
         currentSongIndex = player.getPlaylistIndex();
+
+        // Persist metadata so next page load shows it instantly
+        cacheSongMeta(currentSongIndex, displayTitle, displayArtist, videoId);
+
+        // Also refresh the playlist ID cache whenever we have a live playlist
+        if (player.getPlaylist) {
+            const ids = player.getPlaylist();
+            if (ids && ids.length) cachePlaylist(ids);
+        }
     }
 }
 
@@ -327,13 +399,7 @@ function prevSong() {
     } else {
         player.previousVideo();
     }
-
-    setTimeout(() => {
-        updateSongInfo();
-        if (isPlaying) {
-            player.playVideo();
-        }
-    }, 200);
+    // playVideo() called automatically via PLAYING state if already playing
 }
 
 // Next song
@@ -352,13 +418,7 @@ function nextSong() {
     } else {
         player.nextVideo();
     }
-
-    setTimeout(() => {
-        updateSongInfo();
-        if (isPlaying) {
-            player.playVideo();
-        }
-    }, 200);
+    // playVideo() called automatically via PLAYING state if already playing
 }
 
 // Seek functionality
@@ -431,8 +491,15 @@ function setupMediaSession() {
         title: songTitle.textContent || 'प्रिमियम भजन',
         artist: songArtist.textContent || 'Premium Bhajan',
         album: 'प्रिमियम भजन',
-        artwork: [{ src: albumArt.src, sizes: '512x512', type: 'image/jpeg' }]
+        artwork: [
+            { src: albumArt.src, sizes: '96x96',   type: 'image/jpeg' },
+            { src: albumArt.src, sizes: '128x128',  type: 'image/jpeg' },
+            { src: albumArt.src, sizes: '256x256',  type: 'image/jpeg' },
+            { src: albumArt.src, sizes: '512x512',  type: 'image/jpeg' }
+        ]
     });
+
+    navigator.mediaSession.playbackState = 'playing';
 
     navigator.mediaSession.setActionHandler('play', () => {
         if (player) player.playVideo();
@@ -441,8 +508,59 @@ function setupMediaSession() {
         if (player) player.pauseVideo();
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => prevSong());
-    navigator.mediaSession.setActionHandler('nexttrack', () => nextSong());
+    navigator.mediaSession.setActionHandler('nexttrack',     () => nextSong());
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (player && details.seekTime != null) player.seekTo(details.seekTime, true);
+    });
+
+    // Keep OS seek bar in sync
+    try {
+        const duration = player && player.getDuration ? player.getDuration() : 0;
+        const position = player && player.getCurrentTime ? player.getCurrentTime() : 0;
+        if (duration > 0) {
+            navigator.mediaSession.setPositionState({ duration, playbackRate: 1, position });
+        }
+    } catch (_) {}
 }
+
+// ── Background Audio Focus ─────────────────────────────────────────────────
+// A tiny silent audio loop keeps the browser's audio session alive so
+// Chrome on Android does not suspend the YouTube iframe when the screen locks.
+(function initSilentAudioKeepAlive() {
+    try {
+        // Build a 1-second silent WAV as a data-URI (44 bytes header, no PCM data)
+        const silentWav = 'data:audio/wav;base64,' +
+            'UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+        const silent = new Audio(silentWav);
+        silent.loop   = true;
+        silent.volume = 0;       // completely inaudible
+        // Start only after first user gesture (autoplay policy)
+        const start = () => {
+            silent.play().catch(() => {});
+            document.removeEventListener('click',      start);
+            document.removeEventListener('touchstart', start);
+        };
+        document.addEventListener('click',      start, { once: true });
+        document.addEventListener('touchstart', start, { once: true });
+    } catch (_) {}
+})();
+
+// Resume YouTube playback when the tab comes back to the foreground
+// (handles Android Chrome backgrounding the tab or locking the screen)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isPlaying && player) {
+        // Give the iframe a moment to re-activate then ensure it's playing
+        setTimeout(() => {
+            try {
+                if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    player.playVideo();
+                }
+                setupMediaSession(); // refresh OS controls with latest position
+            } catch (_) {}
+        }, 400);
+    }
+});
+// ─────────────────────────────────────────────────────────────────────
 
 // Event listeners
 playBtn.addEventListener('click', togglePlay);
