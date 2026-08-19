@@ -11,24 +11,15 @@ let progressInterval;
 // Restore saved playback mode (shuffle/order) — defaults to 'order'
 let playbackMode = localStorage.getItem('bhajan_mode') || 'order';
 let shuffledOrder = [];
-let _seekedOnLoad = false; // guard: seek to saved position only once
+let _seekedOnLoad = false; // keep for safety, playerVars handle it natively now
 
-// ── Dynamically inject YouTube IFrame API (never blocks page render) ────────
+// ── Inject YouTube IFrame API immediately — non-blocking dynamic script ────────
 (function loadYouTubeAPI() {
-    const inject = () => {
-        if (document.getElementById('yt-iframe-api')) return; // already injected
-        const tag = document.createElement('script');
-        tag.id  = 'yt-iframe-api';
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
-    };
-    // Inject immediately on first interaction OR after 500 ms — whichever is first
-    let injected = false;
-    const once = () => { if (!injected) { injected = true; inject(); } };
-    setTimeout(once, 500);
-    ['click', 'touchstart', 'keydown'].forEach(e =>
-        document.addEventListener(e, once, { once: true, passive: true })
-    );
+    if (document.getElementById('yt-iframe-api')) return;
+    const tag = document.createElement('script');
+    tag.id  = 'yt-iframe-api';
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
 })();
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -94,25 +85,31 @@ updatePlaybackModeButtons();
 
 // YouTube IFrame API Ready
 function onYouTubeIframeAPIReady() {
+    // Read saved state once and pass directly as playerVars — zero extra round-trips
+    const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
+    const savedTime  = parseInt(localStorage.getItem('bhajan_time')  || '0');
+
     player = new YT.Player('youtube-player', {
         height: '1',
         width: '1',
         playerVars: {
-            'listType': 'playlist',
-            'list': PLAYLIST_ID,
-            'playsinline': 1,
-            'controls': 0,
-            'rel': 0,
-            'showinfo': 0,
-            'modestbranding': 1,
-            'autoplay': 1,   // start immediately — no extra round-trip needed
-            'loop': 1,
-            'origin': window.location.origin,
-            'enablejsapi': 1,
-            'fs': 0
+            'listType':      'playlist',
+            'list':          PLAYLIST_ID,
+            'index':         savedIndex,             // start at saved song natively
+            'start':         savedTime > 5 ? savedTime : 0, // start at saved time natively
+            'playsinline':   1,
+            'controls':      0,
+            'rel':           0,
+            'showinfo':      0,
+            'modestbranding':1,
+            'autoplay':      1,
+            'loop':          1,
+            'origin':        window.location.origin,
+            'enablejsapi':   1,
+            'fs':            0
         },
         events: {
-            'onReady': onPlayerReady,
+            'onReady':       onPlayerReady,
             'onStateChange': onPlayerStateChange,
             'onError': function(e) {
                 console.error('YouTube Player Error:', e.data);
@@ -130,13 +127,8 @@ function onPlayerReady(event) {
     }
 
     startProgressUpdates();
-
-    // Jump to the saved playlist index (autoplay:1 will start it playing)
-    const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
-    if (savedIndex > 0) {
-        player.playVideoAt(savedIndex);
-    }
-    // savedTime seek is handled in onPlayerStateChange (PLAYING) to avoid race conditions
+    // index + start playerVars already put the player at the right song/time —
+    // no playVideoAt() or seekTo() calls needed here.
 
     // Cache playlist IDs as soon as available — fast 80 ms poll, 5 s max
     const playlistCachePoller = setInterval(() => {
