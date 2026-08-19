@@ -118,14 +118,9 @@ function onYouTubeIframeAPIReady() {
     });
 }
 
+
 // Player ready
 function onPlayerReady(event) {
-    // Stop sankha sound if still playing when YouTube is ready
-    if (sankhaSound && !sankhaSound.paused) {
-        sankhaSound.pause();
-        sankhaSound.currentTime = 0;
-    }
-
     startProgressUpdates();
     // index + start playerVars already put the player at the right song/time —
     // no playVideoAt() or seekTo() calls needed here.
@@ -444,21 +439,7 @@ function seek(e) {
 
 const sankhaSound = new Audio('sankha.m4a');
 
-// Auto-play sankha sound while YouTube API loads
-window.addEventListener('load', () => {
-    sankhaSound.play().catch(() => {
-        // Autoplay blocked — user hasn't interacted yet, play on first click
-        const playOnFirstInteraction = () => {
-            if (!player) { // Only if YouTube isn't ready yet
-                sankhaSound.play().catch(() => {});
-            }
-            document.removeEventListener('click', playOnFirstInteraction);
-            document.removeEventListener('touchstart', playOnFirstInteraction);
-        };
-        document.addEventListener('click', playOnFirstInteraction, { once: true });
-        document.addEventListener('touchstart', playOnFirstInteraction, { once: true });
-    });
-});
+
 
 function playSankhaSound() {
     if (!sankhaSound) return;
