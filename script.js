@@ -166,6 +166,7 @@ function onPlayerStateChange(event) {
         updatePlayButton();
         updateSongInfo();
         startCDRotation();
+        setupMediaSession();
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         updatePlayButton();
@@ -330,21 +331,56 @@ function seek(e) {
 const sankhaSound = new Audio('sankha.m4a');
 
 function playSankhaSound() {
-    if (!sankhaSound || !soundTrigger) return;
+    if (!sankhaSound) return;
 
-    const wasPlayingBeforeSound = isPlaying && player && typeof player.pauseVideo === 'function';
-    if (wasPlayingBeforeSound) {
+    const wasPlaying = isPlaying && player && typeof player.pauseVideo === 'function';
+
+    // Pause music if playing
+    if (wasPlaying) {
         player.pauseVideo();
     }
 
     sankhaSound.currentTime = 0;
-    sankhaSound.play();
 
-    sankhaSound.onended = () => {
-        if (wasPlayingBeforeSound && player && typeof player.playVideo === 'function') {
-            player.playVideo();
-        }
-    };
+    const playPromise = sankhaSound.play();
+
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            // Sound started — wait for it to finish then resume
+            sankhaSound.addEventListener('ended', function resumeMusic() {
+                sankhaSound.removeEventListener('ended', resumeMusic);
+                if (wasPlaying && player && typeof player.playVideo === 'function') {
+                    player.playVideo();
+                }
+            }, { once: true });
+        }).catch(() => {
+            // Playback failed — resume music anyway
+            if (wasPlaying && player && typeof player.playVideo === 'function') {
+                player.playVideo();
+            }
+        });
+    }
+}
+
+// Media Session API — enables background playback controls (lock screen, notification)
+function setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: songTitle.textContent || 'प्रिमियम भजन',
+        artist: songArtist.textContent || 'Premium Bhajan',
+        album: 'प्रिमियम भजन',
+        artwork: [{ src: albumArt.src, sizes: '512x512', type: 'image/jpeg' }]
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => {
+        if (player) player.playVideo();
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+        if (player) player.pauseVideo();
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', () => prevSong());
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextSong());
 }
 
 // Event listeners

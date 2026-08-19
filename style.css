@@ -241,11 +241,13 @@ body > *:not(.site-disclaimer) {
     align-items: center;
     gap: 12px;
     width: 580px;
-    max-width: 90vw;
+    min-width: 580px;
+    max-width: 580px;
     margin-top: 80px;
     margin-bottom: -100px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.25);
+    overflow: hidden;
 }
 
 /* Album Art */
@@ -434,7 +436,9 @@ body > *:not(.site-disclaimer) {
     }
 
     .music-player {
-        width: 100%;
+        width: 92vw;
+        min-width: unset;
+        max-width: 92vw;
         padding: 8px 16px;
         border-radius: 50px;
         margin-top: 200px;
