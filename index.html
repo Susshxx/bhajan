@@ -40,9 +40,15 @@
     <!-- Preconnect for faster YouTube loading -->
     <link rel="preconnect" href="https://www.youtube.com">
     <link rel="preconnect" href="https://i.ytimg.com">
+    <link rel="preconnect" href="https://www.youtube-nocookie.com">
+    <link rel="preconnect" href="https://yt3.ggpht.com">
+    <link rel="preconnect" href="https://youtubei.googleapis.com">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="dns-prefetch" href="https://i.ytimg.com">
     <link rel="dns-prefetch" href="https://yt3.ggpht.com">
+    <link rel="dns-prefetch" href="https://youtubei.googleapis.com">
+    <link rel="dns-prefetch" href="https://static.doubleclick.net">
+    <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net">
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -52,6 +58,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhai+2:wght@400..800&family=Hind:wght@300;400;500;600;700&family=Mukta:wght@200;300;400;500;600;700;800&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
     
+    <!-- YouTube IFrame API — load early for faster init -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -131,7 +140,6 @@
     <div class="bg-illustration"></div>
 
     <!-- YouTube IFrame API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script src="firebase-config.js"></script>
     <script src="script.js"></script>
 </body>

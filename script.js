@@ -56,7 +56,27 @@ function onYouTubeIframeAPIReady() {
 
 // Player ready
 function onPlayerReady(event) {
-    updateSongInfo();
+    // Stop sankha sound if still playing when YouTube is ready
+    if (sankhaSound && !sankhaSound.paused) {
+        sankhaSound.pause();
+        sankhaSound.currentTime = 0;
+    }
+
+    // Restore last position if available
+    const savedIndex = parseInt(localStorage.getItem('bhajan_index') || '0');
+    const savedTime = parseFloat(localStorage.getItem('bhajan_time') || '0');
+
+    if (savedIndex > 0 && player.getPlaylist && player.getPlaylist()) {
+        player.playVideoAt(savedIndex);
+        setTimeout(() => {
+            if (savedTime > 0) player.seekTo(savedTime, true);
+            player.pauseVideo();
+            updateSongInfo();
+        }, 500);
+    } else {
+        updateSongInfo();
+    }
+
     startProgressUpdates();
 }
 
@@ -167,6 +187,11 @@ function onPlayerStateChange(event) {
         updateSongInfo();
         startCDRotation();
         setupMediaSession();
+        // Save current song index
+        if (player.getPlaylistIndex) {
+            localStorage.setItem('bhajan_index', player.getPlaylistIndex());
+            localStorage.setItem('bhajan_time', '0');
+        }
     } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
         updatePlayButton();
@@ -234,6 +259,12 @@ function updateProgress() {
         progress.style.width = `${progressPercent}%`;
         currentTimeEl.textContent = convertSecondsToTime(currentTime);
         durationEl.textContent = convertSecondsToTime(duration);
+
+        // Save position every 5 seconds
+        if (Math.floor(currentTime) % 5 === 0) {
+            localStorage.setItem('bhajan_index', player.getPlaylistIndex());
+            localStorage.setItem('bhajan_time', Math.floor(currentTime));
+        }
     }
 }
 
@@ -329,6 +360,22 @@ function seek(e) {
 }
 
 const sankhaSound = new Audio('sankha.m4a');
+
+// Auto-play sankha sound while YouTube API loads
+window.addEventListener('load', () => {
+    sankhaSound.play().catch(() => {
+        // Autoplay blocked — user hasn't interacted yet, play on first click
+        const playOnFirstInteraction = () => {
+            if (!player) { // Only if YouTube isn't ready yet
+                sankhaSound.play().catch(() => {});
+            }
+            document.removeEventListener('click', playOnFirstInteraction);
+            document.removeEventListener('touchstart', playOnFirstInteraction);
+        };
+        document.addEventListener('click', playOnFirstInteraction, { once: true });
+        document.addEventListener('touchstart', playOnFirstInteraction, { once: true });
+    });
+});
 
 function playSankhaSound() {
     if (!sankhaSound) return;
