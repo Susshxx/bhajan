@@ -78,6 +78,19 @@ function onPlayerReady(event) {
     }
 
     startProgressUpdates();
+
+    // Poll until song info is actually available (mobile loads it late)
+    const infoPoller = setInterval(() => {
+        if (!player || !player.getVideoData) return;
+        const data = player.getVideoData();
+        if (data && data.video_id && data.title && data.title !== '') {
+            updateSongInfo();
+            clearInterval(infoPoller);
+        }
+    }, 200);
+
+    // Stop polling after 10 seconds regardless
+    setTimeout(() => clearInterval(infoPoller), 10000);
 }
 
 function shuffleArray(items) {
